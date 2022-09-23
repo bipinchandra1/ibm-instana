@@ -1,13 +1,14 @@
+---
 Troubleshooting Power HMC Instana Sensor problems.
+---
 
-
-Problem: 
+## Problem:  
 You configured the Power HMC Instana Sensor correctly but the sensor is not getting activated successfully.
 Or
 Sensor is activated successfully but getting terminated for some unknown reasons.
 
 
-Resolution:
+## Resolution:  
 This usually indicates that the sensor is not configured properly. 
 Validate the configuration.yaml file 
 The user should have api access to retrieve the performance metrics for the resources. 
@@ -19,34 +20,35 @@ EnergyMonitorEnabled: Energy monitoring status
 
 
 
-Problem: 
+## Problem: 
 There is a need to validate if the Power HMC API is functioning properly or not.
 Or
 There are frequent gaps in the metrics data in the Instana dashboard UI.
 Or
 Following exception is seen in the log:
+```yaml
 2022-07-27T05:42:47.536-04:00 | DEBUG | powerhmc-service-pool-thread-2   | PowerHMC         | com.instana.sensor-power-hmc - 1.0.6 | Stacktrace: 
 java.net.SocketTimeoutException: Read timed out
         at java.net.SocketInputStream.socketRead0(Native Method) ~[?:1.8.0]
         at java.net.SocketInputStream.socketRead(SocketInputStream.java:127) ~[?:1.8.0]
         at java.net.SocketInputStream.read(SocketInputStream.java:182) ~[?:1.8.0]
         at java.net.SocketInputStream.read(SocketInputStream.java:152) ~[?:1.8.0]
+```
 
+## Resolution:  
 
-Resolution:
-Prerequisite:
-1) I used RHEL instead of mac.
-
-STEP 1
-Login:
+### STEP 1
+#### Login:
 Request method: PUT
 
 Create file login.xml. See the attachment.
 Put valid userid and password.
-
+```yaml
 $ curl -k -i -X PUT -H "Content-Type: application/vnd.ibm.powervm.web+xml; type=LogonRequest" -H "Accept: application/vnd.ibm.powervm.web+xml; type=LogonResponse" -H "X-Audit-Memento: hmc_test" -d @login.xml https://9.3.147.20:12443/rest/api/web/Logon
-
+```
 Response:
+```yaml
+
 HTTP/2 200 
 date: Tue, 10 May 2022 05:26:37 GMT
 server: Server Hardware Management Console
@@ -69,16 +71,17 @@ vary: User-Agent
     </Metadata>
     <X-API-Session kb="ROR" kxe="false">Ivq2wxwdH42qfYLSurUMgkaZZuRrYW4Rr8dN4WWufIT1UIKqZqh1DaR_DsVBnWCQGw6ffgTbEv17UwrUQHsr_XNbBs3WMvSfRK58D4tiYFcPPk-ekP5QCfc7dnMSJ3sJT8fcPCLO_QwxmjhGY-E7YjiW9q764nlg-wtFsVMrjRBBqLvvHfQyh8W1hxSFDSxDxCXFzcGjF-PRt4M6VHXW5_8V6Kmb68gJwnSDbI367C4=</X-API-Session>
 </LogonResponse>
-
+```
 
 Copy the X-API-Session id from above.
 
-STEP 2
-GET current PCM attributes:
-
+### STEP 2
+#### GET current PCM attributes:
+```yaml
 curl -k -i -H "Content-Type: application/xml" -H "X-API-Session: Ivq2wxwdH42qfYLSurUMgkaZZuRrYW4Rr8dN4WWufIT1UIKqZqh1DaR_DsVBnWCQGw6ffgTbEv17UwrUQHsr_XNbBs3WMvSfRK58D4tiYFcPPk-ekP5QCfc7dnMSJ3sJT8fcPCLO_QwxmjhGY-E7YjiW9q764nlg-wtFsVMrjRBBqLvvHfQyh8W1hxSFDSxDxCXFzcGjF-PRt4M6VHXW5_8V6Kmb68gJwnSDbI367C4=" -X GET https://9.3.147.20:12443/rest/api/pcm/preferences
-
+```
 Response:
+```yaml
 HTTP/2 200 
 date: Tue, 10 May 2022 05:26:37 GMT
 Server: Server Hardware Management Console PCM
@@ -176,15 +179,16 @@ Transfer-Encoding: chunked
         </content>
     </entry>
 </feed>
-
+```
 Copy one of the managed System AtomID.
 
-STEP 3
-GET current PCM attributes:
-
+### STEP 3
+#### GET current aggregated metrics:
+```yaml
 curl -k -i -H "Content-Type: application/xml" -H "X-API-Session: Ivq2wxwdH42qfYLSurUMgkaZZuRrYW4Rr8dN4WWufIT1UIKqZqh1DaR_DsVBnWCQGw6ffgTbEv17UwrUQHsr_XNbBs3WMvSfRK58D4tiYFcPPk-ekP5QCfc7dnMSJ3sJT8fcPCLO_QwxmjhGY-E7YjiW9q764nlg-wtFsVMrjRBBqLvvHfQyh8W1hxSFDSxDxCXFzcGjF-PRt4M6VHXW5_8V6Kmb68gJwnSDbI367C4=" -X GET https://9.3.147.20:12443/rest/api/pcm/ManagedSystem/2e587e15-e815-39ef-9ec6-22e365dd043f/AggregatedMetrics
-
+```
 Response:
+```yaml
 HTTP/2 200 
 
 
@@ -210,44 +214,35 @@ HTTP/2 200
 .
 .
 </feed>
-
+```
 Copy above link :
 https://9.3.147.20:12443/rest/api/pcm/AggregatedMetrics/ManagedSystem_06751d27-5953-3f7f-bfaa-44382f516fea_20220810T000000+0000_20220923T000000+0000_86400.json
 
-STEP 3
-GET current PCM attributes:
-
+### STEP 4
+#### GET performance metrics in json :
+```yaml
 curl -k -i -H "Content-Type: application/xml" -H "X-API-Session: Ivq2wxwdH42qfYLSurUMgkaZZuRrYW4Rr8dN4WWufIT1UIKqZqh1DaR_DsVBnWCQGw6ffgTbEv17UwrUQHsr_XNbBs3WMvSfRK58D4tiYFcPPk-ekP5QCfc7dnMSJ3sJT8fcPCLO_QwxmjhGY-E7YjiW9q764nlg-wtFsVMrjRBBqLvvHfQyh8W1hxSFDSxDxCXFzcGjF-PRt4M6VHXW5_8V6Kmb68gJwnSDbI367C4=" -X GET https://9.3.147.20:12443/rest/api/pcm/AggregatedMetrics/ManagedSystem_06751d27-5953-3f7f-bfaa-44382f516fea_20220810T000000+0000_20220923T000000+0000_86400.json 
-
+```
 Response:
+```yaml
 A big json with metrics data.
+```
 
-
-
-
-
-
-
-
-
-
-
-
-Note: (Optional)
+## Note: (Optional)
 If you want to run the curl command in a loop, use following command:
+```yaml
 watch -n {{seconds}} {{your-command}}
-
-eg. 
-watch -n 300 “curl -k -i -H ‘Content-Type: application/xml’ -H ‘X-API-Session: Ivq2wxwdH42qfYLSurUMgkaZZuRrYW4Rr8dN4WWufIT1UIKqZqh1DaR_DsVBnWCQGw6ffgTbEv17UwrUQHsr_XNbBs3WMvSfRK58D4tiYFcPPk-ekP5QCfc7dnMSJ3sJT8fcPCLO_QwxmjhGY-E7YjiW9q764nlg-wtFsVMrjRBBqLvvHfQyh8W1hxSFDSxDxCXFzcGjF-PRt4M6VHXW5_8V6Kmb68gJwnSDbI367C4=’ -X GET https://9.3.147.20:12443/rest/api/pcm/ManagedSystem/2e587e15-e815-39ef-9ec6-22e365dd043f/preferences”
-
-or
-while sleep {{seconds}}; do {{your-command}}; done
-
+```
 eg.
+```yaml
+watch -n 300 “curl -k -i -H ‘Content-Type: application/xml’ -H ‘X-API-Session: Ivq2wxwdH42qfYLSurUMgkaZZuRrYW4Rr8dN4WWufIT1UIKqZqh1DaR_DsVBnWCQGw6ffgTbEv17UwrUQHsr_XNbBs3WMvSfRK58D4tiYFcPPk-ekP5QCfc7dnMSJ3sJT8fcPCLO_QwxmjhGY-E7YjiW9q764nlg-wtFsVMrjRBBqLvvHfQyh8W1hxSFDSxDxCXFzcGjF-PRt4M6VHXW5_8V6Kmb68gJwnSDbI367C4=’ -X GET https://9.3.147.20:12443/rest/api/pcm/ManagedSystem/2e587e15-e815-39ef-9ec6-22e365dd043f/preferences”
+```
+or
+```yaml
+while sleep {{seconds}}; do {{your-command}}; done
+```
+eg.
+```yaml
 while sleep 300; do “curl -k -i -H ‘Content-Type: application/xml’ -H ‘X-API-Session: Ivq2wxwdH42qfYLSurUMgkaZZuRrYW4Rr8dN4WWufIT1UIKqZqh1DaR_DsVBnWCQGw6ffgTbEv17UwrUQHsr_XNbBs3WMvSfRK58D4tiYFcPPk-ekP5QCfc7dnMSJ3sJT8fcPCLO_QwxmjhGY-E7YjiW9q764nlg-wtFsVMrjRBBqLvvHfQyh8W1hxSFDSxDxCXFzcGjF-PRt4M6VHXW5_8V6Kmb68gJwnSDbI367C4=’ -X GET https://9.3.147.20:12443/rest/api/pcm/ManagedSystem/2e587e15-e815-39ef-9ec6-22e365dd043f/preferences”; done
-
-
-
-
-![image](https://user-images.githubusercontent.com/83693053/191935370-0ce4c842-c5cc-4f4f-a1af-acd91ba54c16.png)
+```
 
